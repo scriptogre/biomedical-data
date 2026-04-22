@@ -1,20 +1,20 @@
 # Biomedical Data (Parquet)
 
-Pre-built zstd-compressed Parquet files for biomedical databases that only distribute data as database dumps or flat files.
+Zstd-compressed Parquet exports of biomedical databases for use with [DuckDB](https://duckdb.org/). These are **curated subsets** tailored for pharmacology research — not full database mirrors.
 
 Automated monthly via GitHub Actions. Download from [Releases](https://github.com/scriptogre/biomedical-data/releases).
 
 ## Databases
 
-| Database | Source Format | Export Method |
+| Database | What's included | Source |
 |---|---|---|
-| **DrugCentral** | PostgreSQL (public instance) | DuckDB postgres scanner |
-| **Pharos/TCRD** | MySQL dump (FigShare) | Temp MySQL container + DuckDB mysql scanner |
-| **Open Targets** | Parquet part-files (EBI FTP) | Consolidate via DuckDB |
-| **Clinical Trials (AACT)** | Pipe-delimited flat files | DuckDB CSV reader |
-| **MONDO** | TSV (GitHub releases) | DuckDB CSV reader |
-| **STRING** | TSV (StringDB) | DuckDB CSV reader |
-| **CORUM** | TSV (Helmholtz Munich) | DuckDB CSV reader |
+| **DrugCentral** | All tables from the official schema | [Public PostgreSQL](https://unmtid-dbs.net/) |
+| **Pharos/TCRD** | All tables from the MySQL dump | [FigShare](https://figshare.com/search?q=pharos+database+mysql) |
+| **Open Targets** | Selected datasets (targets, diseases, drugs, associations, mechanisms, indications) | [EBI FTP](https://ftp.ebi.ac.uk/pub/databases/opentargets/platform/latest/) |
+| **Clinical Trials (AACT)** | All tables from the daily flat file export | [AACT](https://aact.ctti-clinicaltrials.org/downloads) |
+| **MONDO** | Full ontology (nodes + edges) | [GitHub releases](https://github.com/monarch-initiative/mondo/releases) |
+| **STRING** | Human (taxon 9606) only: protein info, aliases, physical interactions | [StringDB](https://string-db.org/) |
+| **CORUM** | Full complex dataset | [Helmholtz Munich](https://mips.helmholtz-muenchen.de/corum/) |
 
 ## Usage
 

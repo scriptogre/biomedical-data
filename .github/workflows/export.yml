@@ -16,14 +16,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database:
-          - drugcentral
-          - pharos
-          - opentargets
-          - clinicaltrials
-          - mondo
-          - string
-          - corum
+        include:
+          - database: drugcentral
+            label: DrugCentral
+            description: "All official DrugCentral tables from the public PostgreSQL instance at unmtid-dbs.net."
+          - database: pharos
+            label: Pharos/TCRD
+            description: "All tables from the Pharos/TCRD MySQL dump (FigShare). Converted via temporary MySQL container."
+          - database: opentargets
+            label: Open Targets
+            description: "Selected Open Targets Platform datasets: targets, diseases, drugs, mechanisms, associations, indications."
+          - database: clinicaltrials
+            label: Clinical Trials (AACT)
+            description: "All tables from the AACT daily pipe-delimited flat file export of ClinicalTrials.gov."
+          - database: mondo
+            label: MONDO
+            description: "Full MONDO Disease Ontology: nodes and edges TSVs from the latest GitHub release."
+          - database: string
+            label: STRING
+            description: "Human-only (taxon 9606) STRING data: protein info, aliases, and physical interactions."
+          - database: corum
+            label: CORUM
+            description: "Full CORUM mammalian protein complex dataset."
     steps:
       - uses: actions/checkout@v4
 
@@ -34,7 +48,7 @@ jobs:
       - name: Install DuckDB
         run: pip install duckdb
 
-      - name: Export ${{ matrix.database }}
+      - name: Export ${{ matrix.label }}
         run: python scripts/export_${{ matrix.database }}.py
 
       - name: Get version
@@ -56,19 +70,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          DB="${{ matrix.database }}"
 
           # Delete existing release with same tag if it exists
           gh release delete "$TAG" --yes 2>/dev/null || true
           git tag -d "$TAG" 2>/dev/null || true
           git push origin ":refs/tags/$TAG" 2>/dev/null || true
 
-          # Create new release
           gh release create "$TAG" \
-            --title "$DB ($(echo $TAG | cut -d/ -f2))" \
-            --notes "Automated Parquet export of $DB.
+            --title "${{ matrix.label }} ($(echo $TAG | cut -d/ -f2))" \
+            --notes "${{ matrix.description }}
 
           Generated: $(date -u +%Y-%m-%d)
-          Files: $(ls output/$DB/*.parquet | wc -l) tables
-          Size: $(du -sh output/$DB/ | cut -f1)" \
-            /tmp/$DB.tar.gz
+          Tables: $(ls output/${{ matrix.database }}/*.parquet | wc -l)
+          Size: $(du -sh output/${{ matrix.database }}/ | cut -f1) (zstd-compressed Parquet)" \
+            /tmp/${{ matrix.database }}.tar.gz
