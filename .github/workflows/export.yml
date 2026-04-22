@@ -54,10 +54,11 @@ jobs:
       - name: Get version
         id: version
         run: |
+          DATE="$(date -u +%Y-%m-%d)"
+          echo "tag=${{ matrix.database }}/$DATE" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
           if [ -f "output/${{ matrix.database }}_version.txt" ]; then
-            echo "tag=${{ matrix.database }}/$(cat output/${{ matrix.database }}_version.txt)" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=${{ matrix.database }}/$(date +%Y.%m.%d)" >> "$GITHUB_OUTPUT"
+            echo "source_version=$(cat output/${{ matrix.database }}_version.txt)" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create tarball
@@ -80,13 +81,18 @@ jobs:
           git tag -d "$TAG" 2>/dev/null || true
           git push origin ":refs/tags/$TAG" 2>/dev/null || true
 
+          SOURCE_VERSION=""
+          if [ -n "${{ steps.version.outputs.source_version }}" ]; then
+            SOURCE_VERSION="**Source version:** ${{ steps.version.outputs.source_version }}
+          "
+          fi
+
           gh release create "$TAG" \
-            --title "${{ matrix.label }} ($(echo $TAG | cut -d/ -f2))" \
+            --title "${{ matrix.label }} (${{ steps.version.outputs.date }})" \
             --notes "$(cat <<EOF
           ${{ matrix.description }}
 
-          **Generated:** $(date -u +%Y-%m-%d)
-          **Size:** $(du -sh output/$DB/ | cut -f1) (zstd-compressed Parquet)
+          ${SOURCE_VERSION}**Size:** $(du -sh output/$DB/ | cut -f1) (zstd-compressed Parquet)
 
           ### Tables ($(ls output/$DB/*.parquet | wc -l | tr -d ' '))
 

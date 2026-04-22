@@ -65,7 +65,6 @@ def main() -> None:
             finally:
                 txt_path.unlink(missing_ok=True)
 
-    Path("output/clinicaltrials_version.txt").write_text(snapshot_date)
     print("Done.", flush=True)
 
 
