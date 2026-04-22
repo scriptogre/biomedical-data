@@ -18,7 +18,6 @@ import duckdb
 OUTPUT = Path("output/pharos")
 CONTAINER = "pharos-export-mysql"
 MYSQL_PASSWORD = "pharos"
-MYSQL_DB = "pharos"
 MYSQL_PORT = "3307"
 
 
@@ -52,15 +51,15 @@ def start_mysql() -> None:
         [
             "docker", "run", "--name", CONTAINER,
             "-e", f"MYSQL_ROOT_PASSWORD={MYSQL_PASSWORD}",
-            "-e", f"MYSQL_DATABASE={MYSQL_DB}",
             "-p", f"{MYSQL_PORT}:3306",
             "-d", "mysql:8",
             "--disable-log-bin",
             "--innodb-flush-log-at-trx-commit=0",
             "--innodb-doublewrite=0",
-            "--innodb-buffer-pool-size=1G",
+            "--innodb-buffer-pool-size=4G",
             "--innodb-log-file-size=1G",
             "--innodb-write-io-threads=16",
+            "--sync-binlog=0",
         ],
         check=True,
     )
@@ -79,53 +78,65 @@ def start_mysql() -> None:
 
 
 def restore_dump(dump_path: Path) -> None:
-    preamble = "SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0;\n"
-    postamble = "\nCOMMIT;\n"
-
+    gunzip = subprocess.Popen(["gunzip", "-c", str(dump_path)], stdout=subprocess.PIPE)
     mysql = subprocess.Popen(
         ["docker", "exec", "-i", CONTAINER,
-         "mysql", "-uroot", f"-p{MYSQL_PASSWORD}", MYSQL_DB],
-        stdin=subprocess.PIPE,
+         "mysql", "-uroot", f"-p{MYSQL_PASSWORD}"],
+        stdin=gunzip.stdout,
     )
-    gunzip = subprocess.Popen(
-        ["gunzip", "-c", str(dump_path)], stdout=subprocess.PIPE
-    )
-
-    mysql.stdin.write(preamble.encode())
-    while chunk := gunzip.stdout.read(1024 * 1024):
-        mysql.stdin.write(chunk)
-    mysql.stdin.write(postamble.encode())
-    mysql.stdin.close()
-    gunzip.wait()
+    gunzip.stdout.close()
     mysql.wait()
     if mysql.returncode != 0:
         raise RuntimeError("Failed to restore MySQL dump")
 
 
+def find_database_name() -> str:
+    result = subprocess.run(
+        ["docker", "exec", CONTAINER,
+         "mysql", "-uroot", f"-p{MYSQL_PASSWORD}", "-N", "-e",
+         "SHOW DATABASES LIKE 'pharos%'"],
+        capture_output=True, text=True,
+    )
+    databases = [db for db in result.stdout.strip().split("\n") if db != ""]
+    for name in databases:
+        if name != "pharos":
+            return name
+    return "pharos"
+
+
 def export_to_parquet() -> None:
+    mysql_db = find_database_name()
+    print(f"  Found database: {mysql_db}", flush=True)
+
     db = duckdb.connect()
+    db.execute("PRAGMA threads=10")
+    db.execute("PRAGMA memory_limit='8GB'")
     db.execute("INSTALL mysql; LOAD mysql;")
     db.execute(f"""
         ATTACH 'host=127.0.0.1 port={MYSQL_PORT} user=root
-               password={MYSQL_PASSWORD} database={MYSQL_DB}'
+               password={MYSQL_PASSWORD} database={mysql_db}'
         AS pharos_db (TYPE mysql);
     """)
 
-    tables = db.execute("""
+    tables = db.execute(f"""
         SELECT table_name
-        FROM information_schema.tables
-        WHERE table_catalog = 'pharos_db'
+        FROM pharos_db.information_schema.tables
+        WHERE table_schema = '{mysql_db}' AND table_type = 'BASE TABLE'
+        ORDER BY table_name
     """).fetchall()
 
     print(f"  Exporting {len(tables)} tables...", flush=True)
     for (table_name,) in tables:
         out = OUTPUT / f"{table_name}.parquet"
-        db.execute(
-            f"COPY pharos_db.{table_name} TO '{out}' "
-            f"(FORMAT PARQUET, COMPRESSION ZSTD)"
-        )
-        count = db.execute(f"SELECT count(*) FROM '{out}'").fetchone()[0]
-        print(f"    {table_name}.parquet: {count:,} rows", flush=True)
+        try:
+            db.execute(
+                f"COPY pharos_db.{table_name} TO '{out}' "
+                f"(FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 1000000)"
+            )
+            count = db.execute(f"SELECT count(*) FROM '{out}'").fetchone()[0]
+            print(f"    {table_name}.parquet: {count:,} rows", flush=True)
+        except Exception as e:
+            print(f"    {table_name}: FAILED ({e})", flush=True)
 
 
 def stop_mysql() -> None:

@@ -39,6 +39,16 @@ jobs:
             label: CORUM
             description: "Full CORUM mammalian protein complex dataset."
     steps:
+      - name: Free disk space
+        if: matrix.database == 'pharos'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: false
+
       - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
