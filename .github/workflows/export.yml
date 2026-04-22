@@ -70,6 +70,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
+          DB="${{ matrix.database }}"
+
+          # Build table list from parquet filenames
+          TABLE_LIST=$(ls output/$DB/*.parquet | xargs -I{} basename {} .parquet | sort | sed 's/^/- `/' | sed 's/$/`/')
 
           # Delete existing release with same tag if it exists
           gh release delete "$TAG" --yes 2>/dev/null || true
@@ -78,9 +82,15 @@ jobs:
 
           gh release create "$TAG" \
             --title "${{ matrix.label }} ($(echo $TAG | cut -d/ -f2))" \
-            --notes "${{ matrix.description }}
+            --notes "$(cat <<EOF
+          ${{ matrix.description }}
 
-          Generated: $(date -u +%Y-%m-%d)
-          Tables: $(ls output/${{ matrix.database }}/*.parquet | wc -l)
-          Size: $(du -sh output/${{ matrix.database }}/ | cut -f1) (zstd-compressed Parquet)" \
-            /tmp/${{ matrix.database }}.tar.gz
+          **Generated:** $(date -u +%Y-%m-%d)
+          **Size:** $(du -sh output/$DB/ | cut -f1) (zstd-compressed Parquet)
+
+          ### Tables ($(ls output/$DB/*.parquet | wc -l | tr -d ' '))
+
+          $TABLE_LIST
+          EOF
+          )" \
+            /tmp/$DB.tar.gz
