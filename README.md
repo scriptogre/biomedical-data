@@ -1,6 +1,6 @@
 # Biomedical Data (Parquet)
 
-Zstd-compressed Parquet exports of biomedical databases for use with [DuckDB](https://duckdb.org/). These are **curated subsets** tailored for pharmacology research — not full database mirrors.
+Zstd-compressed Parquet exports of biomedical databases for use with [DuckDB](https://duckdb.org/). These are **curated subsets** tailored for pharmacology research (not full database mirrors).
 
 Automated monthly via GitHub Actions. Download from [Releases](https://github.com/scriptogre/biomedical-data/releases).
 
