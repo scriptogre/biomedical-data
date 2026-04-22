@@ -61,10 +61,11 @@ jobs:
             echo "source_version=$(cat output/${{ matrix.database }}_version.txt)" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create tarball
+      - name: Create tarball and checksum
         run: |
           cd output/${{ matrix.database }}
           tar czf /tmp/${{ matrix.database }}.tar.gz *.parquet
+          sha256sum /tmp/${{ matrix.database }}.tar.gz | awk '{print $1}' > /tmp/${{ matrix.database }}.sha256
 
       - name: Create/update release
         env:
@@ -99,4 +100,5 @@ jobs:
           $TABLE_LIST
           EOF
           )" \
-            /tmp/$DB.tar.gz
+            /tmp/$DB.tar.gz \
+            /tmp/$DB.sha256
