@@ -2,20 +2,6 @@ name: Export databases to Parquet
 
 on:
   workflow_dispatch:
-    inputs:
-      database:
-        description: "Database to export (or 'all')"
-        required: true
-        type: choice
-        options:
-          - all
-          - drugcentral
-          - pharos
-          - opentargets
-          - clinicaltrials
-          - mondo
-          - string
-          - corum
   schedule:
     # Monthly on the 1st at 04:00 UTC
     - cron: "0 4 1 * *"
@@ -36,13 +22,6 @@ jobs:
           - string
           - corum
     steps:
-      - name: Skip if not selected
-        if: >-
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.database != 'all' &&
-          github.event.inputs.database != matrix.database
-        run: echo "Skipping ${{ matrix.database }}" && exit 0
-
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
