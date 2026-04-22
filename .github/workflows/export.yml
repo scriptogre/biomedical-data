@@ -6,6 +6,9 @@ on:
     # Monthly on the 1st at 04:00 UTC
     - cron: "0 4 1 * *"
 
+permissions:
+  contents: write
+
 jobs:
   export:
     runs-on: ubuntu-latest
