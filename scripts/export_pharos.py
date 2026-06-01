@@ -67,8 +67,8 @@ def start_mysql() -> None:
     print("  Waiting for MySQL...", flush=True)
     for _ in range(120):
         result = subprocess.run(
-            ["docker", "exec", CONTAINER, "mysqladmin", "ping",
-             "-uroot", f"-p{MYSQL_PASSWORD}", "--silent"],
+            ["docker", "exec", CONTAINER,
+             "mysql", "-uroot", f"-p{MYSQL_PASSWORD}", "-e", "SELECT 1"],
             capture_output=True,
         )
         if result.returncode == 0:
